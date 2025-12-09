@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, Suspense } from "react"
 import Link from "next/link"
 import { Star, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -11,7 +11,7 @@ import { useSearchParams } from "next/navigation"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
 
-export default function ReviewsPage() {
+function ReviewsContent() {
   const searchParams = useSearchParams()
   const bookingId = searchParams.get("bookingId")
   const salonId = searchParams.get("salonId")
@@ -104,6 +104,24 @@ export default function ReviewsPage() {
       </main>
       <Footer />
     </div>
+  )
+}
+
+export default function ReviewsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-muted-foreground">Đang tải...</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    }>
+      <ReviewsContent />
+    </Suspense>
   )
 }
 

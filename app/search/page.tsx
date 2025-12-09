@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Star, MapPin, Filter, X, SlidersHorizontal } from "lucide-react"
@@ -9,7 +9,7 @@ import { mockSalons } from "@/lib/mock-data"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
 
-export default function SearchPage() {
+function SearchContent() {
   const searchParams = useSearchParams()
   const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState({
@@ -386,6 +386,24 @@ export default function SearchPage() {
       </main>
       <Footer />
     </div>
+  )
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-muted-foreground">Đang tải...</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    }>
+      <SearchContent />
+    </Suspense>
   )
 }
 
