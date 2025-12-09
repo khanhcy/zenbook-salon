@@ -384,6 +384,8 @@ function BookingForm() {
   )
 }
 
+export const dynamic = 'force-dynamic'
+
 export default function NewBookingPage() {
   return (
     <Suspense fallback={
