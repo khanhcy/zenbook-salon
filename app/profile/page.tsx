@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
-import { User, Mail, Phone, MapPin, Calendar, Heart, Bell, Settings, Save } from "lucide-react"
+import { useState, useEffect } from "react"
+import Link from "next/link"
+import { User, Mail, Phone, MapPin, Calendar, Heart, Bell, Settings, Save, Gift } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -9,18 +10,25 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { mockBookings, mockSalons } from "@/lib/mock-data"
+import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
+import { mockSalons, getSalonById } from "@/lib/mock-data"
+import { useAppContext } from "@/lib/context/app-context"
+import { getTierInfo, getNextTierInfo, calculateProgressToNextTier } from "@/lib/utils/loyalty"
+import { toast } from "sonner"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
 import { format } from "date-fns"
 
 export default function ProfilePage() {
+  const { user, setUser, bookings, favoriteSalons: favoriteSalonIds } = useAppContext()
+  
   const [profileData, setProfileData] = useState({
-    name: "Nguyen Van A",
-    email: "nguyenvana@example.com",
-    phone: "+84 123 456 789",
-    address: "123 Main Street, District 1, Ho Chi Minh City",
-    dateOfBirth: "1990-01-15",
+    name: user?.name || "",
+    email: user?.email || "",
+    phone: user?.phone || "",
+    address: user?.address || "",
+    dateOfBirth: user?.dateOfBirth || "",
   })
 
   const [notificationSettings, setNotificationSettings] = useState({
@@ -31,6 +39,18 @@ export default function ProfilePage() {
     reviewReminders: true,
   })
 
+  useEffect(() => {
+    if (user) {
+      setProfileData({
+        name: user.name || "",
+        email: user.email || "",
+        phone: user.phone || "",
+        address: user.address || "",
+        dateOfBirth: user.dateOfBirth || "",
+      })
+    }
+  }, [user])
+
   const handleProfileChange = (field: string, value: string) => {
     setProfileData({ ...profileData, [field]: value })
   }
@@ -40,15 +60,28 @@ export default function ProfilePage() {
   }
 
   const handleSaveProfile = () => {
-    alert("Profile updated successfully!")
+    if (!user) {
+      toast.error("Vui lòng đăng nhập để cập nhật hồ sơ")
+      return
+    }
+
+    const updatedUser = {
+      ...user,
+      name: profileData.name,
+      phone: profileData.phone,
+      address: profileData.address,
+      dateOfBirth: profileData.dateOfBirth,
+    }
+    setUser(updatedUser)
+    toast.success("Cập nhật hồ sơ thành công!")
   }
 
   const handleSaveNotifications = () => {
-    alert("Notification settings updated successfully!")
+    toast.success("Cập nhật cài đặt thông báo thành công!")
   }
 
-  const recentBookings = mockBookings.slice(0, 3)
-  const favoriteSalons = mockSalons.slice(0, 2)
+  const recentBookings = bookings.slice(0, 3)
+  const favoriteSalons = favoriteSalonIds.map((id) => getSalonById(id)).filter(Boolean) as typeof mockSalons
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -56,8 +89,38 @@ export default function ProfilePage() {
       <main className="flex-1">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-foreground mb-2">Hồ sơ của tôi</h1>
-            <p className="text-muted-foreground">Quản lý cài đặt và tùy chọn tài khoản của bạn</p>
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h1 className="text-3xl font-bold text-foreground mb-2">Hồ sơ của tôi</h1>
+                <p className="text-muted-foreground">Quản lý cài đặt và tùy chọn tài khoản của bạn</p>
+              </div>
+              {user?.loyaltyTier && (
+                <div className="text-right">
+                  <Badge className={`${getTierInfo(user.loyaltyTier).color} text-base px-4 py-2`}>
+                    {getTierInfo(user.loyaltyTier).emoji} Hạng {getTierInfo(user.loyaltyTier).name}
+                  </Badge>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {user.loyaltyPoints || 0} điểm
+                  </p>
+                </div>
+              )}
+            </div>
+            {user?.loyaltyTier && getNextTierInfo(user.loyaltyTier) && (
+              <div className="mt-4 p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-foreground">
+                    Tiến tới hạng {getNextTierInfo(user.loyaltyTier)?.name} {getNextTierInfo(user.loyaltyTier)?.emoji}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    Còn {calculateProgressToNextTier(user.loyaltyPoints || 0, user.loyaltyTier).pointsNeeded} điểm
+                  </span>
+                </div>
+                <Progress
+                  value={calculateProgressToNextTier(user.loyaltyPoints || 0, user.loyaltyTier)}
+                  className="h-2"
+                />
+              </div>
+            )}
           </div>
 
           <Tabs defaultValue="profile" className="w-full">
@@ -176,7 +239,7 @@ export default function ProfilePage() {
                     <CardContent className="space-y-4">
                       <div>
                         <p className="text-sm text-muted-foreground">Total Bookings</p>
-                        <p className="text-2xl font-bold text-foreground">{mockBookings.length}</p>
+                        <p className="text-2xl font-bold text-foreground">{bookings.length}</p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Favorite Salons</p>
@@ -184,8 +247,32 @@ export default function ProfilePage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Member Since</p>
-                        <p className="text-sm font-medium text-foreground">January 2024</p>
+                        <p className="text-sm font-medium text-foreground">
+                          {user?.memberSince ? format(new Date(user.memberSince), "MMMM yyyy") : "N/A"}
+                        </p>
                       </div>
+                      {user?.loyaltyPoints !== undefined && (
+                        <>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Điểm tích lũy</p>
+                            <p className="text-2xl font-bold text-foreground">{user.loyaltyPoints}</p>
+                          </div>
+                          {user.loyaltyTier && (
+                            <div>
+                              <p className="text-sm text-muted-foreground mb-2">Hạng thành viên</p>
+                              <Badge className={`${getTierInfo(user.loyaltyTier).color} text-lg px-3 py-1`}>
+                                {getTierInfo(user.loyaltyTier).emoji} {getTierInfo(user.loyaltyTier).name}
+                              </Badge>
+                              <Link href="/loyalty">
+                                <Button variant="outline" size="sm" className="w-full mt-2 gap-2">
+                                  <Gift className="w-4 h-4" />
+                                  Xem chi tiết
+                                </Button>
+                              </Link>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </CardContent>
                   </Card>
 

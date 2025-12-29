@@ -49,6 +49,8 @@ export interface Review {
   comment: string
   date: string
   serviceName?: string
+  salonId?: number
+  bookingId?: number
 }
 
 export interface Booking {

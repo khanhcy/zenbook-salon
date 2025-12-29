@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { UserPlus, Mail, Lock, Eye, EyeOff, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -8,10 +9,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { useAppContext } from "@/lib/context/app-context"
+import { toast } from "sonner"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
 
 export default function RegisterPage() {
+  const router = useRouter()
+  const { register } = useAppContext()
   const [showPassword, setShowPassword] = useState(false)
   const [userType, setUserType] = useState("customer")
   const [formData, setFormData] = useState({
@@ -23,12 +28,38 @@ export default function RegisterPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (formData.password !== formData.confirmPassword) {
-      alert("Mật khẩu không khớp!")
+    
+    if (!formData.name || !formData.email || !formData.password) {
+      toast.error("Vui lòng điền đầy đủ thông tin")
       return
     }
-    alert("Registration successful! (Demo mode)")
-    // In real app, this would handle registration
+
+    if (formData.password !== formData.confirmPassword) {
+      toast.error("Mật khẩu không khớp!")
+      return
+    }
+
+    if (formData.password.length < 6) {
+      toast.error("Mật khẩu phải có ít nhất 6 ký tự")
+      return
+    }
+
+    const success = register({
+      name: formData.name,
+      email: formData.email,
+      password: formData.password,
+    })
+
+    if (success) {
+      toast.success("Đăng ký thành công!", {
+        description: `Chào mừng ${formData.name} đến với ZenBook!`,
+      })
+      router.push("/")
+    } else {
+      toast.error("Đăng ký thất bại", {
+        description: "Vui lòng thử lại sau.",
+      })
+    }
   }
 
   return (

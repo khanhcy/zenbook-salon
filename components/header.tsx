@@ -2,8 +2,8 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { Search, LogIn, Menu, X, User, BookOpen, Settings, LogOut } from "lucide-react"
+import { usePathname, useRouter } from "next/navigation"
+import { Search, LogIn, Menu, X, User, BookOpen, Settings, LogOut, Gift } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -12,10 +12,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useAppContext } from "@/lib/context/app-context"
+import { toast } from "sonner"
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const pathname = usePathname()
+  const router = useRouter()
+  const { user, logout } = useAppContext()
+
+  const handleLogout = () => {
+    logout()
+    toast.success("Đăng xuất thành công!")
+    router.push("/")
+  }
 
   const navLinks = [
     { href: "/", label: "Trang chủ" },
@@ -79,10 +89,17 @@ export default function Header() {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2 bg-transparent">
                   <User className="w-4 h-4" />
-                  <span className="hidden sm:inline">Tài khoản</span>
+                  <span className="hidden sm:inline">{user ? user.name : "Tài khoản"}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
+                {user ? (
+                  <>
+                    <div className="px-2 py-1.5 text-sm">
+                      <p className="font-medium">{user.name}</p>
+                      <p className="text-xs text-muted-foreground">{user.email}</p>
+                    </div>
+                    <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link href="/profile" className="flex items-center gap-2">
                     <User className="w-4 h-4" />
@@ -96,18 +113,38 @@ export default function Header() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/dashboard/salon" className="flex items-center gap-2">
-                    <Settings className="w-4 h-4" />
-                    Quản lý Salon
+                  <Link href="/loyalty" className="flex items-center gap-2">
+                    <Gift className="w-4 h-4" />
+                    Khách hàng thân thiết
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/login" className="flex items-center gap-2">
-                    <LogIn className="w-4 h-4" />
-                    Đăng nhập
-                  </Link>
-                </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/dashboard/salon" className="flex items-center gap-2">
+                        <Settings className="w-4 h-4" />
+                        Quản lý Salon
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout} className="flex items-center gap-2">
+                      <LogOut className="w-4 h-4" />
+                      Đăng xuất
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link href="/login" className="flex items-center gap-2">
+                        <LogIn className="w-4 h-4" />
+                        Đăng nhập
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/register" className="flex items-center gap-2">
+                        Đăng ký
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
 

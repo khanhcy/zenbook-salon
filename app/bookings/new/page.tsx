@@ -6,6 +6,9 @@ import { Clock, Check, ArrowLeft, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { getSalonById, getServiceById, getStylistById } from "@/lib/mock-data"
+import { useAppContext } from "@/lib/context/app-context"
+import { applyTierDiscount, getTierInfo } from "@/lib/utils/loyalty"
+import { toast } from "sonner"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
 import { format } from "date-fns"
@@ -38,6 +41,7 @@ const TIME_SLOTS = [
 function BookingForm() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const { addBooking, user } = useAppContext()
   const salonIdParam = searchParams.get("salonId")
   const salonId = salonIdParam ? parseInt(salonIdParam) : null
 
@@ -61,6 +65,12 @@ function BookingForm() {
 
   const selectedService = selectedServiceId ? getServiceById(salonId, selectedServiceId) : null
   const selectedStylist = selectedStylistId ? getStylistById(salonId, selectedStylistId) : null
+  
+  // Calculate price with tier discount
+  const originalPrice = selectedService?.price || 0
+  const tier = user?.loyaltyTier || "bronze"
+  const finalPrice = user ? applyTierDiscount(originalPrice, tier) : originalPrice
+  const discount = originalPrice - finalPrice
 
   const canProceed = () => {
     switch (currentStep) {
@@ -90,11 +100,36 @@ function BookingForm() {
   }
 
   const handleConfirm = () => {
-    // Mock booking confirmation
-    alert(
-      `Booking confirmed!\n\nSalon: ${salon.name}\nService: ${selectedService?.name}\nStylist: ${selectedStylist?.name}\nDate: ${format(selectedDate!, "PPP")}\nTime: ${selectedTime}`
-    )
-    router.push("/bookings")
+    if (!salon || !selectedService || !selectedStylist || !selectedDate || !selectedTime) {
+      toast.error("Vui lòng điền đầy đủ thông tin")
+      return
+    }
+
+    try {
+      const newBooking = addBooking({
+        salonId: salon.id,
+        salonName: salon.name,
+        serviceId: selectedService.id,
+        serviceName: selectedService.name,
+        stylistId: selectedStylist.id,
+        stylistName: selectedStylist.name,
+        date: selectedDate.toISOString().split("T")[0],
+        time: selectedTime,
+        price: finalPrice, // Use discounted price
+        status: "pending",
+      })
+
+      toast.success("Đặt lịch thành công!", {
+        description: `Lịch hẹn của bạn đã được tạo. Mã đặt lịch: #${newBooking.id.toString().padStart(6, "0")}`,
+      })
+
+      // Redirect to booking detail page
+      router.push(`/bookings/${newBooking.id}`)
+    } catch (error) {
+      toast.error("Có lỗi xảy ra khi đặt lịch", {
+        description: "Vui lòng thử lại sau.",
+      })
+    }
   }
 
   const minDate = new Date()
@@ -283,10 +318,28 @@ function BookingForm() {
                         </p>
                       </div>
                       <div className="bg-primary/10 rounded-lg p-4 border-2 border-primary">
-                        <div className="flex justify-between items-center">
-                          <p className="text-sm text-muted-foreground">Total Price</p>
+                        {discount > 0 && (
+                          <div className="flex justify-between items-center mb-2">
+                            <p className="text-sm text-muted-foreground">Giá gốc</p>
+                            <p className="text-sm line-through text-muted-foreground">
+                              {originalPrice.toLocaleString("vi-VN")} VND
+                            </p>
+                          </div>
+                        )}
+                        {discount > 0 && (
+                          <div className="flex justify-between items-center mb-2">
+                            <p className="text-sm text-muted-foreground">
+                              Giảm giá ({getTierInfo(tier).name})
+                            </p>
+                            <p className="text-sm font-medium text-green-600">
+                              -{discount.toLocaleString("vi-VN")} VND
+                            </p>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-center pt-2 border-t border-primary/20">
+                          <p className="text-sm text-muted-foreground">Tổng giá</p>
                           <p className="text-2xl font-bold text-primary">
-                            {selectedService?.price.toLocaleString("vi-VN")} VND
+                            {finalPrice.toLocaleString("vi-VN")} VND
                           </p>
                         </div>
                       </div>
@@ -364,14 +417,34 @@ function BookingForm() {
                     </div>
                   )}
                   <div className="pt-4 border-t border-border">
-                    <div className="flex justify-between items-center mb-2">
-                      <p className="text-sm text-muted-foreground">Total Price</p>
-                      <p className="text-xl font-bold text-primary">
-                        {selectedService
-                          ? `${selectedService.price.toLocaleString("vi-VN")} VND`
-                          : "—"}
-                      </p>
-                    </div>
+                    {selectedService && (
+                      <>
+                        {discount > 0 && (
+                          <div className="flex justify-between items-center mb-1">
+                            <p className="text-xs text-muted-foreground">Giá gốc</p>
+                            <p className="text-xs line-through text-muted-foreground">
+                              {originalPrice.toLocaleString("vi-VN")} VND
+                            </p>
+                          </div>
+                        )}
+                        {discount > 0 && (
+                          <div className="flex justify-between items-center mb-2">
+                            <p className="text-xs text-muted-foreground">
+                              Giảm ({getTierInfo(tier).name})
+                            </p>
+                            <p className="text-xs font-medium text-green-600">
+                              -{discount.toLocaleString("vi-VN")} VND
+                            </p>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-center">
+                          <p className="text-sm text-muted-foreground">Tổng giá</p>
+                          <p className="text-xl font-bold text-primary">
+                            {finalPrice.toLocaleString("vi-VN")} VND
+                          </p>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

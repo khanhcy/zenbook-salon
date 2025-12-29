@@ -2,11 +2,13 @@
 
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { Calendar, Clock, MapPin, User, Phone, Mail, X, RefreshCw, QrCode, Download } from "lucide-react"
+import { Calendar, Clock, MapPin, User, Phone, Mail, X, RefreshCw, QrCode, Download, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
-import { mockBookings, getSalonById } from "@/lib/mock-data"
+import { getSalonById } from "@/lib/mock-data"
+import { useAppContext } from "@/lib/context/app-context"
+import { toast } from "sonner"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
 import { format } from "date-fns"
@@ -21,8 +23,9 @@ const statusConfig = {
 export default function BookingDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const { getBookingById, cancelBooking } = useAppContext()
   const bookingId = parseInt(params.id as string)
-  const booking = mockBookings.find((b) => b.id === bookingId)
+  const booking = getBookingById(bookingId)
 
   if (!booking) {
     return (
@@ -41,11 +44,14 @@ export default function BookingDetailPage() {
   }
 
   const salon = getSalonById(booking.salonId)
-  const status = statusConfig[booking.status]
+  const status = statusConfig[booking.status as keyof typeof statusConfig]
 
   const handleCancel = () => {
-    if (confirm("Are you sure you want to cancel this booking?")) {
-      alert("Booking cancelled successfully!")
+    if (confirm("Bạn có chắc chắn muốn hủy lịch hẹn này không?")) {
+      cancelBooking(bookingId)
+      toast.success("Đã hủy lịch hẹn thành công!", {
+        description: `Lịch hẹn tại ${booking.salonName} đã được hủy.`,
+      })
       router.push("/bookings")
     }
   }
@@ -175,21 +181,32 @@ export default function BookingDetailPage() {
               </Card>
 
               {/* Actions */}
-              {(booking.status === "pending" || booking.status === "confirmed") && (
-                <Card className="p-6">
-                  <h2 className="text-xl font-semibold text-foreground mb-4">Thao tác</h2>
-                  <div className="flex flex-wrap gap-3">
-                    <Button onClick={handleReschedule} variant="outline" className="gap-2">
-                      <RefreshCw className="w-4 h-4" />
-                      Đổi lịch
+              <Card className="p-6">
+                <h2 className="text-xl font-semibold text-foreground mb-4">Thao tác</h2>
+                <div className="flex flex-wrap gap-3">
+                  {booking.status === "completed" && (
+                    <Button
+                      onClick={() => router.push(`/reviews?bookingId=${booking.id}&salonId=${booking.salonId}`)}
+                      className="gap-2"
+                    >
+                      <Star className="w-4 h-4" />
+                      Viết đánh giá
                     </Button>
-                    <Button onClick={handleCancel} variant="destructive" className="gap-2">
-                      <X className="w-4 h-4" />
-                      Hủy đặt lịch
-                    </Button>
-                  </div>
-                </Card>
-              )}
+                  )}
+                  {(booking.status === "pending" || booking.status === "confirmed") && (
+                    <>
+                      <Button onClick={handleReschedule} variant="outline" className="gap-2">
+                        <RefreshCw className="w-4 h-4" />
+                        Đổi lịch
+                      </Button>
+                      <Button onClick={handleCancel} variant="destructive" className="gap-2">
+                        <X className="w-4 h-4" />
+                        Hủy đặt lịch
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </Card>
             </div>
 
             {/* Sidebar */}

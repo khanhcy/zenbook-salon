@@ -1,7 +1,7 @@
 "use client"
 
 import { useParams, useRouter } from "next/navigation"
-import { Star, MapPin, Clock, Phone, Mail, Calendar } from "lucide-react"
+import { Star, MapPin, Clock, Phone, Mail, Calendar, Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Carousel,
@@ -12,14 +12,39 @@ import {
 } from "@/components/ui/carousel"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getSalonById } from "@/lib/mock-data"
+import { useAppContext } from "@/lib/context/app-context"
+import { toast } from "sonner"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
 
 export default function SalonDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const { toggleFavorite, isFavorite, getReviewsBySalonId, user } = useAppContext()
   const salonId = parseInt(params.id as string)
   const salon = getSalonById(salonId)
+  const favorite = isFavorite(salonId)
+
+  // Get reviews for this salon from context
+  const salonReviews = getReviewsBySalonId(salonId)
+  // Combine with mock reviews from salon data
+  const allReviews = [...(salon?.reviewsList || []), ...salonReviews]
+
+  const handleToggleFavorite = () => {
+    toggleFavorite(salonId)
+    toast.success(favorite ? "Đã xóa khỏi yêu thích" : "Đã thêm vào yêu thích", {
+      description: favorite ? `${salon.name} đã được xóa khỏi danh sách yêu thích` : `${salon.name} đã được thêm vào danh sách yêu thích`,
+    })
+  }
+
+  const handleWriteReview = () => {
+    if (!user) {
+      toast.error("Vui lòng đăng nhập để viết đánh giá")
+      router.push("/login")
+      return
+    }
+    router.push(`/reviews?salonId=${salonId}`)
+  }
 
   if (!salon) {
     return (
@@ -144,8 +169,8 @@ export default function SalonDetailPage() {
               </div>
             </div>
 
-            {/* Book Now Button */}
-            <div className="md:sticky md:top-24 h-fit">
+            {/* Book Now Button & Favorite */}
+            <div className="md:sticky md:top-24 h-fit flex flex-col gap-3">
               <Button
                 onClick={() => router.push(`/bookings/new?salonId=${salon.id}`)}
                 className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-3 px-8 text-lg"
@@ -153,6 +178,15 @@ export default function SalonDetailPage() {
               >
                 <Calendar className="w-5 h-5 mr-2" />
                 Đặt lịch ngay
+              </Button>
+              <Button
+                onClick={handleToggleFavorite}
+                variant={favorite ? "default" : "outline"}
+                className="w-full md:w-auto"
+                size="lg"
+              >
+                <Heart className={`w-5 h-5 mr-2 ${favorite ? "fill-current" : ""}`} />
+                {favorite ? "Đã yêu thích" : "Yêu thích"}
               </Button>
             </div>
           </div>
@@ -221,9 +255,27 @@ export default function SalonDetailPage() {
 
             {/* Reviews Tab */}
             <TabsContent value="reviews" className="mt-6">
-              {salon.reviewsList.length > 0 ? (
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground">Đánh giá ({allReviews.length})</h3>
+                  {allReviews.length > 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      Đánh giá trung bình:{" "}
+                      {(
+                        allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length
+                      ).toFixed(1)}{" "}
+                      sao
+                    </p>
+                  )}
+                </div>
+                <Button onClick={handleWriteReview} variant="outline" size="sm">
+                  Viết đánh giá
+                </Button>
+              </div>
+
+              {allReviews.length > 0 ? (
                 <div className="space-y-4">
-                  {salon.reviewsList.map((review) => (
+                  {allReviews.map((review) => (
                     <div key={review.id} className="bg-card border border-border rounded-lg p-4">
                       <div className="flex items-start justify-between mb-2">
                         <div>
@@ -252,7 +304,12 @@ export default function SalonDetailPage() {
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <p className="text-muted-foreground">Chưa có đánh giá nào. Hãy là người đầu tiên đánh giá!</p>
+                  <p className="text-muted-foreground mb-4">
+                    Chưa có đánh giá nào. Hãy là người đầu tiên đánh giá!
+                  </p>
+                  <Button onClick={handleWriteReview} variant="outline">
+                    Viết đánh giá đầu tiên
+                  </Button>
                 </div>
               )}
             </TabsContent>

@@ -2,11 +2,13 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Calendar, Clock, MapPin, User, X, RefreshCw, Eye } from "lucide-react"
+import { Calendar, Clock, MapPin, User, X, RefreshCw, Eye, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { mockBookings, getSalonById } from "@/lib/mock-data"
+import { getSalonById } from "@/lib/mock-data"
+import { useAppContext } from "@/lib/context/app-context"
+import { toast } from "sonner"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
 import { format } from "date-fns"
@@ -19,7 +21,7 @@ const statusConfig = {
 }
 
 export default function BookingsPage() {
-  const [bookings] = useState(mockBookings)
+  const { bookings, cancelBooking } = useAppContext()
 
   const upcomingBookings = bookings.filter(
     (booking) => booking.status === "pending" || booking.status === "confirmed"
@@ -28,9 +30,14 @@ export default function BookingsPage() {
   const cancelledBookings = bookings.filter((booking) => booking.status === "cancelled")
 
   const handleCancel = (bookingId: number) => {
+    const booking = bookings.find((b) => b.id === bookingId)
+    if (!booking) return
+
     if (confirm("Bạn có chắc chắn muốn hủy lịch hẹn này không?")) {
-      alert("Đã hủy lịch hẹn thành công!")
-      // In real app, this would update the booking status
+      cancelBooking(bookingId)
+      toast.success("Đã hủy lịch hẹn thành công!", {
+        description: `Lịch hẹn tại ${booking.salonName} đã được hủy.`,
+      })
     }
   }
 
@@ -105,6 +112,14 @@ export default function BookingsPage() {
                 Xem chi tiết
               </Button>
             </Link>
+            {booking.status === "completed" && (
+              <Link href={`/reviews?bookingId=${booking.id}&salonId=${booking.salonId}`}>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Star className="w-4 h-4" />
+                  Đánh giá
+                </Button>
+              </Link>
+            )}
             {booking.status === "pending" || booking.status === "confirmed" ? (
               <>
                 <Button
